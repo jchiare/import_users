@@ -115,7 +115,7 @@ def sanitize(role):
 		return 'user'
 	else:
 		role = role.replace(' ','_') # incase the csv file has "read only user" as an example
-		if (role) == 'stakeholder' or role == 'read_only_user'):
+		if (role == 'stakeholder' or role == 'read_only_user'):
 			return 'read_only_user'
 		elif (role == 'responder' or role == 'limited_user'):
 			return 'limited_user'
