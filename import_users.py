@@ -121,7 +121,7 @@ def sanitize(role):
 		elif (role.lower() == 'responder' or role.lower() == 'limited_user'):
 			return 'limited_user'
 		else: 
-			return role
+			return role.lower()
 
 class Users:
 	def __init__(self,name,email,role,title,phone_country_code,phone_number,team):
@@ -151,7 +151,7 @@ with open('users.csv') as csvfile:
 	next(reader)
 
 	for row in reader: 
-		
+		print(row)
 		if (row['name'] == '') or (row['email'] == ''):
 			continue
 		
