@@ -114,7 +114,7 @@ def sanitize(role):
 	if role == "":
 		return 'user'
 	else:
-		role = role.lstrip()
+		role = role.strip()
 		role = role.replace(' ','_')
 		if (role.lower() == 'stakeholder' or role.lower() == 'read_only_user'):
 			return 'read_only_user'
