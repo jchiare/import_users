@@ -114,24 +114,23 @@ def sanitize(role):
 	if role == "":
 		return 'user'
 	else:
-		role = role.strip()
-		role = role.replace(' ','_')
-		if (role.lower() == 'stakeholder' or role.lower() == 'read_only_user'):
+		role = role.replace(' ','_') # incase the csv file has "read only user" as an example
+		if (role) == 'stakeholder' or role == 'read_only_user'):
 			return 'read_only_user'
-		elif (role.lower() == 'responder' or role.lower() == 'limited_user'):
+		elif (role == 'responder' or role == 'limited_user'):
 			return 'limited_user'
 		else: 
-			return role.lower()
+			return role
 
 class Users:
 	def __init__(self,name,email,role,title,phone_country_code,phone_number,team):
-		self.name = name
-		self.email = email
-		self.role = sanitize(role)
-		self.title = title or " "
-		self.phone_country_code = phone_country_code
-		self.phone_number = phone_number
-		self.team = team
+		self.name = name.strip()
+		self.email = email.strip()
+		self.role = sanitize(role.strip().lower())
+		self.title = title.strip() or " "
+		self.phone_country_code = phone_country_code.strip()
+		self.phone_number = phone_number.strip()
+		self.team = team.strip()
 
 	def create_base_user(self):
 		return base_user(self)	
