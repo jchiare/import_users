@@ -6,34 +6,37 @@ import csv
 import requests
 import json
 
+# Create a file which will contains the errors from the API responses
 file = open("import_users_errors.txt","w+")
 
-requester = input('Enter requester email address(must be email address from an existing PD user): ')
-key = input('Enter REST API key: ')
+# Ask the user for the email address and rest api key
+requester = input('Enter requester email address (must be email address from an existing PD user): ')
+key = input('Enter REST API key (must *not* be read-only key): ')
 
-create_team_option = input("Create teams if they don't exist? (type 'yes' or 'no'): ")
-if create_team_option.lower() == 'yes':
-	create_team_option = True
-else: 
-	create_team_option = False
-
+# Initialize constants for the API requests
 base_url = "https://api.pagerduty.com"
-
 header_without_requester = {
 	"Content-Type": "application/json",
 	"Authorization": "Token token=" + key,
 	"Accept": "application/vnd.pagerduty+json;version=2"
 }
-
 header_with_requester = {
 	"Content-Type": "application/json",
 	"Authorization": "Token token=" + key,
     "Accept": "application/vnd.pagerduty+json;version=2",
 	"From": requester
 }
-
 request = requests.Session()
 
+# See if user wants to create a team if they don't exist, and initiate the boolean variable to execute on this later in the script
+create_team_option = input("Create teams if they don't exist? (type 'yes' or 'no'): ")
+if create_team_option.lower() == 'yes':
+	create_team_option = True
+else: 
+	create_team_option = False
+
+
+# API request to create the user
 def base_user(user):
 	body = {
 		"user": {
@@ -53,6 +56,7 @@ def base_user(user):
 		file.write("'" + user.name + "'" + " was not created because of error(s) " + response.text + "\n")
 		return False
 
+# API request to add the contact method and notification rules on the specific channel (SMS or Phone)
 def add_contact_and_notification_objects(user,channel):
 	body =  { 
 		"contact_method": {
@@ -81,40 +85,51 @@ def add_contact_and_notification_objects(user,channel):
 	else:
 		file.write(channel + " contact method not added for " + user.name + " because of error(s): " + response.text + "\n")
 
+# API request to add the user to the team
 def add_user_to_team(user,team):
 	request.headers.update(header_without_requester)
-	response = request.get(base_url + '/teams?query=' + team)
-	
-	if create_team_option != True:
-		
-		for enum_team in response.json()['teams']:
-			if team.lower() == enum_team['name'].lower():
-				return request.put(base_url + '/teams/' + enum_team['id'] + '/users/' + user.id)
 
+	#paginate incase an account has a lot of teams
+	team_list = {}
+	offset = 0
+	while True: 
+		response = request.get(base_url + '/teams?query=' + team + '&limit=100&offset=' + str(offset))
+		for each_team in response.json()['teams']:
+			team_list.update({each_team['summary'].lower():each_team['id']})
+		if response.json()['more'] == False:
+			break
+		else:
+			offset += 100
+		
+	# If user chose the option to Not create a team
+	if create_team_option != True:
+		if team_list.get(team.lower()):
+			return request.put(base_url + '/teams/' + team_list.get(team.lower()) + '/users/' + user.id)
 		file.write('no existing team found for ' + team + '\n')
 
+	# If user chose the option to create a team if it does not currently exist
 	else: 
-
-		for enum_team in response.json()['teams']:
-			if team.lower() == enum_team['name'].lower():
-				return request.put(base_url + '/teams/' + enum_team['id'] + '/users/' + user.id)
-
-		body = {
-				"team": {
-					"type": "team",
-					"name": team
+		if team_list.get(team.lower()):
+			return request.put(base_url + '/teams/' + team_list.get(team.lower()) + '/users/' + user.id)
+		# create a team if is does not exist
+		else:
+			body = {
+					"team": {
+						"type": "team",
+						"name": team
+					}
 				}
-			}
-		response = request.post(base_url + '/teams', data=json.dumps(body))
-		team_id = response.json()['team']['id']
-		response = request.put(base_url + '/teams/' + team_id + '/users/' + user.id)
+			response = request.post(base_url + '/teams', data=json.dumps(body))
+			file.write('created team "' + team + ' "because no team existed' + '\n')
+			team_id = response.json()['team']['id']
+			response = request.put(base_url + '/teams/' + team_id + '/users/' + user.id)
 		
-		
+# Clean up the text of the 'user' role to satisfy the API request
 def sanitize(role):
 	if role == "":
 		return 'user'
 	else:
-		role = role.replace(' ','_') # incase the csv file has "read only user" as an example
+		role = role.replace(' ','_') # incase the csv file has, for example, "read only user" as the role
 		if (role == 'stakeholder' or role == 'read_only_user'):
 			return 'read_only_user'
 		elif (role == 'responder' or role == 'limited_user'):
@@ -150,7 +165,6 @@ with open('users.csv') as csvfile:
 	next(reader)
 
 	for row in reader: 
-		print(row)
 		if (row['name'] == '') or (row['email'] == ''):
 			continue
 		
@@ -171,8 +185,8 @@ with open('users.csv') as csvfile:
 					user.add_team(team)
 			else:
 				user.add_team(user.team)
-			print(row['name'] + ' was added\n')
+			print(row['name'] + ' was added')
 
-print('Script has finished running.')
 print('\n')
+print('Script has finished running.')
 input('Did you delete the API key from the customers account?!: ')
